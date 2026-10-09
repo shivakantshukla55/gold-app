@@ -98,6 +98,11 @@ app.get('/api/prices', async (req, res) => {
 });
 
 if (fs.existsSync(DIST)) {
+  // The service worker must never be cached by the browser, or updates won't reach installed apps.
+  app.get('/sw.js', (_req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(path.join(DIST, 'sw.js'));
+  });
   app.use(express.static(DIST));
   app.get('*', (_req, res) => res.sendFile(path.join(DIST, 'index.html')));
 }
