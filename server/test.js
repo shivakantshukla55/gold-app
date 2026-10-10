@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { parseGoodreturns, parseStockezee } from './scrape.js';
-import { buildMonthly } from './index.js';
+import { buildMonthly } from './core.js';
 import { getAdvice } from '../src/advice.js';
 
 // Samples copied from the live pages on 8 Oct 2026.
