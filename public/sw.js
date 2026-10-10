@@ -1,7 +1,7 @@
 // Service worker: lets the app install and keep working offline.
 // - Prices (/api/prices): network first, fall back to the last saved response.
 // - Everything else (app shell, JS, CSS, icons): cache first, refreshed in the background.
-const VERSION = 'v1';
+const VERSION = 'v2'; // bump to drop old caches on every phone/browser that installed an earlier version
 const SHELL = `gold-shell-${VERSION}`;
 const DATA = `gold-data-${VERSION}`;
 
@@ -45,7 +45,9 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(req).then((hit) => {
       const net = fetch(req).then((res) => {
-        if (res.ok) caches.open(SHELL).then((c) => c.put(req, res.clone()));
+        // Clone right away: a response body can only be read once, and the page starts reading it as soon as we return.
+        const copy = res.clone();
+        if (res.ok) caches.open(SHELL).then((c) => c.put(req, copy));
         return res;
       }).catch(() => hit);
       return hit || net;

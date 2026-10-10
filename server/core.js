@@ -4,6 +4,8 @@ import { fetchStockezee, fetchGoodreturns } from './scrape.js';
 import seed from './seed.js';
 
 export const CACHE_MS = 15 * 60 * 1000;
+// Bump when the data/parsing logic changes: saved results from older code are then ignored, not served for 15 min.
+export const PAYLOAD_VERSION = 2;
 
 export const istDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
 
@@ -49,6 +51,7 @@ export async function refresh(storage) {
   const latest = daily.filter((d) => d.date <= today).at(-1);
 
   return {
+    v: PAYLOAD_VERSION,
     fetchedAt: new Date().toISOString(),
     today: {
       date: latest?.date ?? today,
