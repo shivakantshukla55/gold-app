@@ -22,7 +22,9 @@ export function buildMonthly(daily, today) {
 }
 
 export async function refresh(storage) {
-  const history = (await storage.loadHistory()) ?? { daily: { ...seed.daily } };
+  const saved = (await storage.loadHistory()) ?? { daily: {} };
+  // Bundled starter prices fill any day we don't have; saved prices always win.
+  const history = { ...saved, daily: { ...seed.daily, ...saved.daily } };
   const today = istDate();
   const warnings = [];
   let live = null;

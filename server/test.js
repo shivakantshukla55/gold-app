@@ -14,6 +14,20 @@ assert.deepEqual(rows, [
   { date: '2026-10-06', perGram: 13770 },
 ]);
 
+// The real page's markup may differ: split tags, arrows, entities, extra cells, ads in between.
+const variants = [
+  `<tr><td>Oct 10, 2026</td><td>&#8377;15,142 (<b>+71</b>)</td><td>&#8377;13,880 (<b>+65</b>)</td></tr>
+   <tr><td>Oct 09, 2026</td><td>₹15,071 <i class="up"></i> <span>+114</span></td><td>₹13,815 <i class="up"></i> <span>+105</span></td></tr>
+   <tr><td>Oct 07, 2026</td><td>₹ 14,957 ▼ (−65)</td><td>₹ 13,710 ▼ (−60)</td></tr>`,
+  `<div>Oct 9, 2026</div><div>₹15,071</div><div>₹13,815</div><div>Oct 8, 2026</div><div>₹14,957</div><div>₹13,710</div>`,
+];
+for (const v of variants) {
+  const got = Object.fromEntries(parseGoodreturns(v).map((r) => [r.date, r.perGram]));
+  assert.equal(got['2026-10-09'], 13815);
+  assert.ok(Object.values(got).every((p) => p > 13000 && p < 14000));
+}
+assert.throws(() => parseGoodreturns('<p>Please verify you are human</p>'), /not found \(got \d+ chars/);
+
 const stockezee = `<p>Live Update: 08 Oct 2026 17:00</p><div>Gold 24K</div><div>₹1,49,570</div><div>Gold 22K</div><div>₹1,37,100</div>`;
 assert.deepEqual(parseStockezee(stockezee), { per10g: 137100, perGram: 13710, updatedLabel: '08 Oct 2026 17:00' });
 

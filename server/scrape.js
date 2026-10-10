@@ -15,7 +15,8 @@ export function htmlToText(html) {
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;|&#160;/g, ' ')
-    .replace(/&#8377;|&rupee;/g, '₹')
+    .replace(/&#8377;|&#x20b9;|&rupee;/gi, '₹')
+    .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ');
 }
 
@@ -35,20 +36,29 @@ export function parseStockezee(html) {
   return { per10g, perGram: Math.round(per10g / 10), updatedLabel: updated ? updated[1] : null };
 }
 
-// Rows look like: "Oct 08, 2026 ₹14,957 (0) ₹13,710 (0)"  (24K first, then 22K)
+// Each row is a date like "Oct 08, 2026" followed by two rupee amounts: 24K first, then 22K
+// (the small "(+65)" changes are ignored). Tolerant of whatever tags/spacing/arrows sit between them.
 export function parseGoodreturns(html) {
   const text = htmlToText(html);
-  const re = /([A-Z][a-z]{2}) (\d{2}), (\d{4})\s*₹\s*([\d,]+)\s*\(([+-]?[\d,]+)\)\s*₹\s*([\d,]+)\s*\(([+-]?[\d,]+)\)/g;
-  const rows = [];
-  let m;
-  while ((m = re.exec(text))) {
-    const month = MONTHS[m[1]];
-    if (!month) continue;
-    const date = `${m[3]}-${String(month).padStart(2, '0')}-${m[2]}`;
-    rows.push({ date, perGram: toNumber(m[6]) });
+  const marks = [...text.matchAll(/([A-Z][a-z]{2})\s+(\d{1,2}),?\s+(\d{4})/g)].filter((m) => MONTHS[m[1]]);
+  const byDate = new Map();
+  marks.forEach((m, i) => {
+    const start = m.index + m[0].length;
+    const end = Math.min(marks[i + 1]?.index ?? Infinity, start + 200);
+    const amounts = [...text.slice(start, end).matchAll(/₹\s*([\d,]+)/g)].map((a) => toNumber(a[1])).filter((n) => n >= 1000);
+    if (amounts.length < 2) return;
+    const [k24, k22] = amounts;
+    const ratio = k22 / k24; // 22K is 91.6% of 24K; reject anything that isn't a real 24K/22K pair
+    if (ratio < 0.85 || ratio > 0.97) return;
+    const date = `${m[3]}-${String(MONTHS[m[1]]).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+    if (!byDate.has(date)) byDate.set(date, k22);
+  });
+  if (!byDate.size) {
+    const at = text.search(/last 10 days/i);
+    const snippet = text.slice(Math.max(at, 0), Math.max(at, 0) + 160);
+    throw new Error(`Goodreturns: 10-day table not found (got ${text.length} chars: "${snippet}")`);
   }
-  if (!rows.length) throw new Error('Goodreturns: 10-day table not found');
-  return rows;
+  return [...byDate].map(([date, perGram]) => ({ date, perGram }));
 }
 
 export async function fetchStockezee() {
